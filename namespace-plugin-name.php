@@ -5,6 +5,7 @@ wp-content/plugins/namespace-plugin-name/
 namespace-plugin-name.php
 
 - meta information in comments
+- replace namespace_plugin_name with appropriate naming
 
 <?php
 //Assign global variables
@@ -120,20 +121,76 @@ function namespace_plugin_name_register_widgets() {
 
 add_action( 'widgets_init', 'namespace_plugin_name_register_widgets' );
 
+//add some shortcode stuff
+function namespace_plugin_name_shortcode($atts, $content = null) {
+	//get info about the post where the shortcode will be
+	global $post;
+
+	extract( shortcode_atts( array(
+		'show_plot' => 'yes'
+	), $atts ));
+
+	if( $show_plot == 'yes' ) $show_plot = 1;
+	if( $show_plot == 'no' ) $show_plot = 0;
+
+	$display_plot = $show_plot;
+
+	$options = get_option('namespace_plugin_name');
+	$namespace_json_stuff = $options['namespace_json_stuff'];
+
+	//buffering
+	ob_start();
+	require ( 'inc/front-end.php');
+	$content = ob_get_clean();
+	return $content;
+}
+//what the short code will look like [namespace_plugin_name show_plot='yes']
+add_shortcode('namespace_plugin_name', 'namespace_plugin_name_shortcode')
 
 //if a json is needed
 function namespace_plugin_name_get_json( $somevariable ) {
 	//$somevariable could be a username or other value that is need to get the correct json feed
 	$json_feed_url = 'url';
-	$args - array('timeout' => 120);
+	$args = array('timeout' => 120);
 
-	$json_feed- wp_remote_get($json_feed_url, $args);
+	$json_feed = wp_remote_get($json_feed_url, $args);
 
 
 	//return the body of the json feed only and conver to something more usable - an object
 	$namespace_json_stuff = json_decode( $json_feed['body']);
 	return $namespace_json_stuff;
 }
+
+//to update the json information automatically
+function namespace_plugin_name_refresh_feed() {
+	$options = get_option( 'namespace_plugin_name');
+	$last_updated = $options['last_updated'];
+
+	$current_time = time();
+
+	$update_difference = $current_time - $last_updated;
+	//if the difference is greater than 24 hours update the feed
+	if( $update_difference > 86400 ) {
+		//get any variables needed to get feed
+		$somevariable = whatever;
+		//then
+		$options['namespace_json_stuff'] = namespace_plugin_name_get_json( $somevariable );
+		$options['last_updated'] = time();
+
+		update_option('namespace_plugin_name', $options);
+	}
+	die();
+}
+add_action('wp_ajax_namespace_plugin_name_refresh_feed', 'namespace_plugin_name_refresh_feed');
+
+function namespace_plugin_name_enable_frontend_ajax() {
+	?>
+		<script>
+		var ajaxurl = '<?php echo admin_url('admin-ajax.php'); ?>';
+		</script>
+	<?php
+}
+add_action('wp_head', 'namespace_plugin_name_enable_frontend_ajax');
 
 function namespace_plugin_name_backend_styles() {
 	//add some custom css for the admin settings page
